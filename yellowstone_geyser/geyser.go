@@ -4,13 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/weeaa/goyser/pkg"
-	"github.com/weeaa/goyser/yellowstone_geyser/pb"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/metadata"
 	"io"
 	"reflect"
 	"slices"
@@ -18,6 +11,14 @@ import (
 	"sync"
 	"time"
 	"unsafe"
+
+	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
+	"github.com/weeaa/goyser/pkg"
+	yellowstone_geyser_pb "github.com/weeaa/goyser/yellowstone_geyser/pb"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/metadata"
 )
 
 type Client struct {
@@ -91,7 +92,12 @@ func (c *Client) Ping(count int32) (*yellowstone_geyser_pb.PongResponse, error) 
 }
 
 // AddStreamClient creates a new Geyser subscribe stream client. You can retrieve it with GetStreamClient.
-func (c *Client) AddStreamClient(ctx context.Context, streamName string, commitmentLevel yellowstone_geyser_pb.CommitmentLevel, opts ...grpc.CallOption) error {
+func (c *Client) AddStreamClient(
+	ctx context.Context,
+	streamName string,
+	commitmentLevel yellowstone_geyser_pb.CommitmentLevel,
+	opts ...grpc.CallOption,
+) error {
 	c.s.mu.Lock()
 	defer c.s.mu.Unlock()
 
@@ -130,11 +136,22 @@ func (c *Client) AddStreamClient(ctx context.Context, streamName string, commitm
 	go streamClient.listen()
 	go streamClient.keepAlive()
 
+	// go func() {
+	// 	time.Sleep(60 * time.Second)
+
+	// 	if !isChannelClosed(streamClient.ErrCh) {
+	// 		streamClient.ErrCh <- fmt.Errorf("tut")
+	// 	}
+	// }()
+
 	return nil
 }
 
 func (s *StreamClient) Stop() {
-	s.Ctx.Done()
+	var cancelFunc context.CancelFunc
+	s.Ctx, cancelFunc = context.WithCancel(s.Ctx)
+	cancelFunc()
+
 	close(s.Ch)
 	close(s.ErrCh)
 }
@@ -190,7 +207,10 @@ func (s *StreamClient) sendRequest() error {
 // SubscribeAccounts subscribes to account updates.
 // Note: This will overwrite existing subscriptions for the given ID.
 // To add new accounts without overwriting, use AppendAccounts.
-func (s *StreamClient) SubscribeAccounts(filterName string, req *yellowstone_geyser_pb.SubscribeRequestFilterAccounts) error {
+func (s *StreamClient) SubscribeAccounts(
+	filterName string,
+	req *yellowstone_geyser_pb.SubscribeRequestFilterAccounts,
+) error {
 	s.mu.Lock()
 	s.request.Accounts[filterName] = req
 	s.mu.Unlock()
@@ -240,7 +260,10 @@ func (s *StreamClient) UnsubscribeSlots(filterName string) error {
 }
 
 // SubscribeTransaction subscribes to transaction updates.
-func (s *StreamClient) SubscribeTransaction(filterName string, req *yellowstone_geyser_pb.SubscribeRequestFilterTransactions) error {
+func (s *StreamClient) SubscribeTransaction(
+	filterName string,
+	req *yellowstone_geyser_pb.SubscribeRequestFilterTransactions,
+) error {
 	s.request.Transactions[filterName] = req
 	return s.geyser.Send(s.request)
 }
@@ -252,7 +275,10 @@ func (s *StreamClient) UnsubscribeTransaction(filterName string) error {
 }
 
 // SubscribeTransactionStatus subscribes to transaction status updates.
-func (s *StreamClient) SubscribeTransactionStatus(filterName string, req *yellowstone_geyser_pb.SubscribeRequestFilterTransactions) error {
+func (s *StreamClient) SubscribeTransactionStatus(
+	filterName string,
+	req *yellowstone_geyser_pb.SubscribeRequestFilterTransactions,
+) error {
 	s.request.TransactionsStatus[filterName] = req
 	return s.geyser.Send(s.request)
 }
@@ -263,7 +289,10 @@ func (s *StreamClient) UnsubscribeTransactionStatus(filterName string) error {
 }
 
 // SubscribeBlocks subscribes to block updates.
-func (s *StreamClient) SubscribeBlocks(filterName string, req *yellowstone_geyser_pb.SubscribeRequestFilterBlocks) error {
+func (s *StreamClient) SubscribeBlocks(
+	filterName string,
+	req *yellowstone_geyser_pb.SubscribeRequestFilterBlocks,
+) error {
 	s.request.Blocks[filterName] = req
 	return s.geyser.Send(s.request)
 }
@@ -274,7 +303,10 @@ func (s *StreamClient) UnsubscribeBlocks(filterName string) error {
 }
 
 // SubscribeBlocksMeta subscribes to block metadata updates.
-func (s *StreamClient) SubscribeBlocksMeta(filterName string, req *yellowstone_geyser_pb.SubscribeRequestFilterBlocksMeta) error {
+func (s *StreamClient) SubscribeBlocksMeta(
+	filterName string,
+	req *yellowstone_geyser_pb.SubscribeRequestFilterBlocksMeta,
+) error {
 	s.request.BlocksMeta[filterName] = req
 	return s.geyser.Send(s.request)
 }
@@ -329,13 +361,22 @@ func (s *StreamClient) listen() {
 						s.ErrCh <- fmt.Errorf("stream context cancelled: %w", err)
 					}
 					return
+				default:
 				}
 				return
 			}
-			select {
-			case s.Ch <- recv:
-			case <-s.Ctx.Done():
-				return
+
+			if recv != nil {
+				if isChannelClosed2(s.Ch) {
+					s.Ch = make(chan *yellowstone_geyser_pb.SubscribeUpdate)
+				}
+
+				select {
+				case <-s.Ctx.Done():
+					return
+				case s.Ch <- recv:
+				default:
+				}
 			}
 		}
 	}
@@ -375,6 +416,15 @@ func (s *StreamClient) keepAlive() {
 }
 
 func isChannelClosed(ch <-chan error) bool {
+	select {
+	case _, ok := <-ch:
+		return !ok
+	default:
+	}
+	return false
+}
+
+func isChannelClosed2(ch <-chan *yellowstone_geyser_pb.SubscribeUpdate) bool {
 	select {
 	case _, ok := <-ch:
 		return !ok
@@ -452,7 +502,10 @@ func ConvertTransaction(geyserTx *yellowstone_geyser_pb.SubscribeUpdateTransacti
 		tx.Meta.InnerInstructions = append(tx.Meta.InnerInstructions, rpc.InnerInstruction{})
 		tx.Meta.InnerInstructions[i].Index = uint16(innerInst.Index)
 		for x, inst := range innerInst.Instructions {
-			tx.Meta.InnerInstructions[i].Instructions = append(tx.Meta.InnerInstructions[i].Instructions, solana.CompiledInstruction{})
+			tx.Meta.InnerInstructions[i].Instructions = append(
+				tx.Meta.InnerInstructions[i].Instructions,
+				solana.CompiledInstruction{},
+			)
 			accounts, err := bytesToUint16Slice(inst.Accounts)
 			if err != nil {
 				return nil, err
@@ -480,11 +533,17 @@ func ConvertTransaction(geyserTx *yellowstone_geyser_pb.SubscribeUpdateTransacti
 	}
 
 	for _, readOnlyAddress := range meta.LoadedReadonlyAddresses {
-		tx.Meta.LoadedAddresses.ReadOnly = append(tx.Meta.LoadedAddresses.ReadOnly, solana.PublicKeyFromBytes(readOnlyAddress))
+		tx.Meta.LoadedAddresses.ReadOnly = append(
+			tx.Meta.LoadedAddresses.ReadOnly,
+			solana.PublicKeyFromBytes(readOnlyAddress),
+		)
 	}
 
 	for _, writableAddress := range meta.LoadedWritableAddresses {
-		tx.Meta.LoadedAddresses.Writable = append(tx.Meta.LoadedAddresses.Writable, solana.PublicKeyFromBytes(writableAddress))
+		tx.Meta.LoadedAddresses.Writable = append(
+			tx.Meta.LoadedAddresses.Writable,
+			solana.PublicKeyFromBytes(writableAddress),
+		)
 	}
 
 	// solTx, err := tx.Transaction.GetTransaction()
@@ -550,192 +609,6 @@ func ConvertTransaction(geyserTx *yellowstone_geyser_pb.SubscribeUpdateTransacti
 
 	return tx, nil
 }
-
-/*
-// ConvertTransactionf converts a Geyser parsed transaction into an rpc.GetTransactionResult format.
-func ConvertTransactionf(geyserTx *yellowstone_geyser_pb.SubscribeUpdateTransaction) (*rpc.GetParsedTransactionResult, error) {
-	meta := geyserTx.Transaction.Meta
-	transaction := geyserTx.Transaction.Transaction
-
-	tx := &rpc.GetParsedTransactionResult{
-		Transaction: &rpc.ParsedTransaction{
-			Signatures: make([]solana.Signature, 0),
-			Message: rpc.ParsedMessage{
-				AccountKeys:     make([]rpc.ParsedMessageAccount, 0),
-				Instructions:    make([]*rpc.ParsedInstruction, 0),
-				RecentBlockHash: string(transaction.Message.RecentBlockhash),
-			},
-		},
-		Meta: &rpc.ParsedTransactionMeta{
-			InnerInstructions: make([]rpc.ParsedInnerInstruction, 0),
-			LogMessages:       meta.LogMessages,
-			PostBalances:      make([]uint64, 0),
-			PostTokenBalances: make([]rpc.TokenBalance, 0),
-			PreBalances:       make([]uint64, 0),
-			PreTokenBalances:  make([]rpc.TokenBalance, 0),
-			//Rewards:           make([]rpc.BlockReward, 0),
-		},
-		Slot: geyserTx.Slot,
-		//Version: transaction.Message.Versioned, todo
-	}
-
-	tx.Meta.PreBalances = meta.PreBalances
-	tx.Meta.PostBalances = meta.PostBalances
-	tx.Meta.Err = meta.Err
-	tx.Meta.Fee = meta.Fee
-	//tx.Meta.ComputeUnitsConsumed = meta.ComputeUnitsConsumed
-	tx.Meta.LogMessages = meta.LogMessages
-
-	for _, preTokenBalance := range meta.PreTokenBalances {
-		owner := solana.MustPublicKeyFromBase58(preTokenBalance.Owner)
-		tx.Meta.PreTokenBalances = append(tx.Meta.PreTokenBalances, rpc.TokenBalance{
-			AccountIndex: uint16(preTokenBalance.AccountIndex),
-			Owner:        &owner,
-			Mint:         solana.MustPublicKeyFromBase58(preTokenBalance.Mint),
-			UiTokenAmount: &rpc.UiTokenAmount{
-				Amount:         preTokenBalance.UiTokenAmount.Amount,
-				Decimals:       uint8(preTokenBalance.UiTokenAmount.Decimals),
-				UiAmount:       &preTokenBalance.UiTokenAmount.UiAmount,
-				UiAmountString: preTokenBalance.UiTokenAmount.UiAmountString,
-			},
-		})
-	}
-
-	for _, postTokenBalance := range meta.PostTokenBalances {
-		owner := solana.MustPublicKeyFromBase58(postTokenBalance.Owner)
-		tx.Meta.PostTokenBalances = append(tx.Meta.PostTokenBalances, rpc.TokenBalance{
-			AccountIndex: uint16(postTokenBalance.AccountIndex),
-			Owner:        &owner,
-			Mint:         solana.MustPublicKeyFromBase58(postTokenBalance.Mint),
-			UiTokenAmount: &rpc.UiTokenAmount{
-				Amount:         postTokenBalance.UiTokenAmount.Amount,
-				Decimals:       uint8(postTokenBalance.UiTokenAmount.Decimals),
-				UiAmount:       &postTokenBalance.UiTokenAmount.UiAmount,
-				UiAmountString: postTokenBalance.UiTokenAmount.UiAmountString,
-			},
-		})
-	}
-
-	for i, innerInst := range meta.InnerInstructions {
-		tx.Meta.InnerInstructions = append(tx.Meta.InnerInstructions, rpc.ParsedInnerInstruction{})
-		tx.Meta.InnerInstructions[i].Index = uint64(innerInst.Index)
-		for x, inst := range innerInst.Instructions {
-			tx.Meta.InnerInstructions[i].Instructions = append(tx.Meta.InnerInstructions[i].Instructions, &rpc.ParsedInstruction{})
-			accounts, err := bytesToUint16Slice(inst.Accounts)
-			if err != nil {
-				return nil, err
-			}
-
-			//tx.Meta.InnerInstructions[i].Instructions[x].Parsed
-
-			tx.Meta.InnerInstructions[i].Instructions[x].Accounts = accounts
-			tx.Meta.InnerInstructions[i].Instructions[x].ProgramIDIndex = uint16(inst.ProgramIdIndex)
-			tx.Meta.InnerInstructions[i].Instructions[x].Data = inst.Data
-			tx.Meta.InnerInstructions[i].Instructions[x].Program = inst.
-			// if err = tx.Meta.InnerInstructions[i].Instructions[x].Data.UnmarshalJSON(inst.Data); err != nil {
-			// 	return nil, err
-			// }
-		}
-	}
-
-	for _, reward := range meta.Rewards {
-		comm, _ := strconv.ParseUint(reward.Commission, 10, 64)
-		commission := uint8(comm)
-		tx.Meta.Rewards = append(tx.Meta.Rewards, rpc.BlockReward{
-			Pubkey:      solana.MustPublicKeyFromBase58(reward.Pubkey),
-			Lamports:    reward.Lamports,
-			PostBalance: reward.PostBalance,
-			RewardType:  rpc.RewardType(reward.RewardType.String()),
-			Commission:  &commission,
-		})
-	}
-
-	for _, readOnlyAddress := range meta.LoadedReadonlyAddresses {
-		tx.Meta.LoadedAddresses.ReadOnly = append(tx.Meta.LoadedAddresses.ReadOnly, solana.PublicKeyFromBytes(readOnlyAddress))
-	}
-
-	for _, writableAddress := range meta.LoadedWritableAddresses {
-		tx.Meta.LoadedAddresses.ReadOnly = append(tx.Meta.LoadedAddresses.ReadOnly, solana.PublicKeyFromBytes(writableAddress))
-	}
-
-	// solTx, err := tx.Transaction.GetTransaction()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	solTx := &solana.Transaction{
-		Signatures: make([]solana.Signature, 0),
-		Message: solana.Message{
-			AccountKeys:         make(solana.PublicKeySlice, 0),
-			Instructions:        make([]solana.CompiledInstruction, 0),
-			AddressTableLookups: make(solana.MessageAddressTableLookupSlice, 0),
-		},
-	}
-
-	if transaction.Message.Versioned {
-		solTx.Message.SetVersion(1)
-	}
-
-	solTx.Message.RecentBlockhash = solana.HashFromBytes(transaction.Message.RecentBlockhash)
-	solTx.Message.Header = solana.MessageHeader{
-		NumRequiredSignatures:       uint8(transaction.Message.Header.NumRequiredSignatures),
-		NumReadonlySignedAccounts:   uint8(transaction.Message.Header.NumReadonlySignedAccounts),
-		NumReadonlyUnsignedAccounts: uint8(transaction.Message.Header.NumReadonlyUnsignedAccounts),
-	}
-
-	for _, sig := range transaction.Signatures {
-		solTx.Signatures = append(solTx.Signatures, solana.SignatureFromBytes(sig))
-	}
-
-	for _, table := range transaction.Message.AddressTableLookups {
-		solTx.Message.AddressTableLookups = append(solTx.Message.AddressTableLookups, solana.MessageAddressTableLookup{
-			AccountKey:      solana.PublicKeyFromBytes(table.AccountKey),
-			WritableIndexes: table.WritableIndexes,
-			ReadonlyIndexes: table.ReadonlyIndexes,
-		})
-	}
-
-	for _, key := range transaction.Message.AccountKeys {
-		solTx.Message.AccountKeys = append(solTx.Message.AccountKeys, solana.PublicKeyFromBytes(key))
-	}
-
-	for _, inst := range transaction.Message.Instructions {
-		accounts, err := bytesToUint16Slice(inst.Accounts)
-		if err != nil {
-			return nil, err
-		}
-
-		solTx.Message.Instructions = append(solTx.Message.Instructions, solana.CompiledInstruction{
-			ProgramIDIndex: uint16(inst.ProgramIdIndex),
-			Accounts:       accounts,
-			Data:           inst.Data,
-		})
-	}
-
-	func(obj interface{}, fieldName string, value interface{}) {
-		v := reflect.ValueOf(obj).Elem()
-		f := v.FieldByName(fieldName)
-		ptr := unsafe.Pointer(f.UnsafeAddr())
-		reflect.NewAt(f.Type(), ptr).Elem().Set(reflect.ValueOf(value))
-	}(tx.Transaction, "asParsedTransaction", solTx)
-
-	return tx, nil
-}
-*/
-
-/*
-func BatchConvertTransaction(geyserTxns ...*yellowstone_geyser_pb.SubscribeUpdateTransaction) []*rpc.GetTransactionResult {
-	txns := make([]*rpc.GetTransactionResult, len(geyserTxns), 0)
-	for _, tx := range geyserTxns {
-		txn, err := ConvertTransaction(tx)
-		if err != nil {
-			continue
-		}
-		txns = append(txns, txn)
-	}
-	return txns
-}
-*/
 
 // ConvertBlockHash converts a Geyser type block to a github.com/gagliardetto/solana-go Solana block.
 func ConvertBlockHash(geyserBlock *yellowstone_geyser_pb.SubscribeUpdateBlock) *rpc.GetBlockResult {
@@ -785,20 +658,6 @@ func BatchConvertBlockHash(geyserBlocks ...*yellowstone_geyser_pb.SubscribeUpdat
 	}
 	return blocks
 }
-
-// func bytesToUint16Slice(data []byte) ([]uint16, error) {
-// 	if len(data)%2 != 0 {
-// 		return nil, fmt.Errorf("length of byte slice must be even to convert to uint16 slice")
-// 	}
-
-// 	uint16s := make([]uint16, len(data)/2)
-
-// 	for i := 0; i < len(data); i += 2 {
-// 		uint16s[i/2] = binary.LittleEndian.Uint16(data[i : i+2])
-// 	}
-
-// 	return uint16s, nil
-// }
 
 func bytesToUint16Slice(data []byte) ([]uint16, error) {
 	uint16s := make([]uint16, len(data))

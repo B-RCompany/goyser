@@ -3,11 +3,12 @@ package jito_geyser
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	jito_geyser_pb "github.com/weeaa/goyser/jito_geyser/pb"
 	"github.com/weeaa/goyser/pkg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"sync"
 )
 
 type Client struct {
