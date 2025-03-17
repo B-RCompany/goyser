@@ -1,13 +1,13 @@
 # Solana Geyser SDK
-[![GoDoc](https://pkg.go.dev/badge/github.com/weeaa/goyser?status.svg)](https://pkg.go.dev/github.com/weeaa/goyser?tab=doc)
-[![Go Report Card](https://goreportcard.com/badge/github.com/weeaa/goyser)](https://goreportcard.com/report/github.com/weeaa/goyser)
+[![GoDoc](https://pkg.go.dev/badge/github.com/B-RCompany/goyser?status.svg)](https://pkg.go.dev/github.com/B-RCompany/goyser?tab=doc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/B-RCompany/goyser)](https://goreportcard.com/report/github.com/B-RCompany/goyser)
 [![License](https://img.shields.io/badge/license-Apache_2.0-crimson)](https://opensource.org/license/apache-2-0)
 
 
 This library contains tooling to interact with **[Yellowstone](https://github.com/rpcpool/yellowstone-grpc)** & **[Jito](https://github.com/jito-foundation/geyser-grpc-plugin)** Geyser plugins.
 
 <div align="center">
-  <img src="https://github.com/weeaa/goyser/assets/108926252/601185b7-3f50-4542-ae94-16488a651467" alt="yellowstone" width="500" style="border-radius: 15px;"/>
+  <img src="https://github.com/B-RCompany/goyser/assets/108926252/601185b7-3f50-4542-ae94-16488a651467" alt="yellowstone" width="500" style="border-radius: 15px;"/>
 </div>
 
 ## ❇️ Contents
@@ -51,7 +51,7 @@ If my work has been useful in building your for-profit services/infra/bots/etc, 
 
 Go 1.22.0 or higher.
 ```shell
-go get github.com/weeaa/goyser@latest
+go get github.com/B-RCompany/goyser@latest
 ```
 
 ## 💻 Examples
@@ -63,8 +63,8 @@ package main
 
 import (
   "context"
-  "github.com/weeaa/goyser/yellowstone_geyser"
-  geyser_pb "github.com/weeaa/goyser/yellowstone_geyser/pb"
+  "github.com/B-RCompany/goyser/yellowstone_geyser"
+  geyser_pb "github.com/B-RCompany/goyser/yellowstone_geyser/pb"
   "log"
   "os"
   "time"

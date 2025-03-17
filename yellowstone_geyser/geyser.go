@@ -12,10 +12,10 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/B-RCompany/goyser/pkg"
+	yellowstone_geyser_pb "github.com/B-RCompany/goyser/yellowstone_geyser/pb"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/weeaa/goyser/pkg"
-	yellowstone_geyser_pb "github.com/weeaa/goyser/yellowstone_geyser/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/metadata"

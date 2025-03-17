@@ -1,11 +1,12 @@
 package yellowstone_geyser
 
 import (
+	"testing"
+
+	yellowstone_geyser_pb "github.com/B-RCompany/goyser/yellowstone_geyser/pb"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	yellowstone_geyser_pb "github.com/weeaa/goyser/yellowstone_geyser/pb"
-	"testing"
 )
 
 var mockCu uint64 = 200000

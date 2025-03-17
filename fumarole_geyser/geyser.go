@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/weeaa/goyser/fumarole_geyser/pb"
-	"github.com/weeaa/goyser/pkg"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"sync"
 	"time"
+
+	"github.com/B-RCompany/goyser/fumarole_geyser/pb"
+	"github.com/B-RCompany/goyser/pkg"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // Client represents a client for the Fumarole service.

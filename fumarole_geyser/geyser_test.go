@@ -2,14 +2,15 @@ package fumarole_geyser
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/weeaa/goyser/fumarole_geyser/pb"
-	"google.golang.org/grpc/metadata"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/B-RCompany/goyser/fumarole_geyser/pb"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/metadata"
 )
 
 func TestGeyser(t *testing.T) {

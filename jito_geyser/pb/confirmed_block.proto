@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/weeaa/goyser/jito/jito_pb";
+option go_package = "github.com/B-RCompany/goyser/jito/jito_pb";
 
 package solana.storage.ConfirmedBlock;
 

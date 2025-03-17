@@ -8,7 +8,7 @@ require (
 	github.com/gagliardetto/solana-go v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
-	github.com/weeaa/goyser v0.0.0-20250302005111-9a6060c66c22
+	github.com/B-RCompany/goyser v0.0.0-20250302005111-9a6060c66c22
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5
 )

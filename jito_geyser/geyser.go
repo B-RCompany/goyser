@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	jito_geyser_pb "github.com/weeaa/goyser/jito_geyser/pb"
-	"github.com/weeaa/goyser/pkg"
+	jito_geyser_pb "github.com/B-RCompany/goyser/jito_geyser/pb"
+	"github.com/B-RCompany/goyser/pkg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
