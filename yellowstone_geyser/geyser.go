@@ -134,7 +134,7 @@ func (c *Client) AddStreamClient(
 			AccountsDataSlice:  make([]*yellowstone_geyser_pb.SubscribeRequestAccountsDataSlice, 0),
 			Commitment:         &commitmentLevel,
 		},
-		Ch:    make(chan *yellowstone_geyser_pb.SubscribeUpdate),
+		Ch:    make(chan *yellowstone_geyser_pb.SubscribeUpdate, 20),
 		ErrCh: make(chan error),
 		mu:    sync.RWMutex{},
 	}
