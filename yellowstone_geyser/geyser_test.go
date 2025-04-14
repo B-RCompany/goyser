@@ -1,8 +1,12 @@
 package yellowstone_geyser
 
 import (
+	"context"
+	"fmt"
 	"testing"
+	"time"
 
+	geyser_pb "github.com/B-RCompany/goyser/yellowstone_geyser/pb"
 	yellowstone_geyser_pb "github.com/B-RCompany/goyser/yellowstone_geyser/pb"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/stretchr/testify/assert"
@@ -99,4 +103,51 @@ func TestConvertTransaction(t *testing.T) {
 			}
 		})
 	}
+}
+
+
+func TestTransactionsSub(t *testing.T) {
+	ctx := context.Background()
+
+	client, err := New(ctx, "https://grpc.fra.shyft.to", "", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = client.AddStreamClient(ctx, "test", geyser_pb.CommitmentLevel_PROCESSED); err != nil {
+		panic(err)
+	}
+
+	streamClient := client.GetStreamClient("test")
+	if streamClient == nil {
+		panic(fmt.Sprintf("Geyser client does not have a stream named %s", "test"))
+	}
+
+	failed := true 
+
+	accounts := []string{"5QfWopLLtM5E6i6ZXeWwAr5cJ3YvKMaRnw6EFuPYef3d"}
+
+	filter := geyser_pb.SubscribeRequestFilterTransactions{
+		Failed:         &failed,
+		AccountInclude: accounts,
+	}
+
+	err = streamClient.SubscribeTransaction(
+		"balances",
+		&filter,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		for {
+			select {
+			case recv := <-streamClient.Ch:
+				t.Logf("streamClient.Ch %+v", recv)
+			}
+		}
+	}()
+
+	time.Sleep(30 * time.Second)
 }

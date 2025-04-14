@@ -28,6 +28,7 @@ type Client struct {
 	Geyser         yellowstone_geyser_pb.GeyserClient
 	ErrCh          chan error
 	s              *streamManager
+	xToken string 
 }
 
 type streamManager struct {
@@ -52,7 +53,7 @@ type StreamClient struct {
 }
 
 // New creates a new Client instance.
-func New(ctx context.Context, grpcDialURL string, md metadata.MD) (*Client, error) {
+func New(ctx context.Context, grpcDialURL string, xToken string,md metadata.MD) (*Client, error) {
 	ch := make(chan error)
 
 	if md != nil {
@@ -75,6 +76,7 @@ func New(ctx context.Context, grpcDialURL string, md metadata.MD) (*Client, erro
 			clients: make(map[string]*StreamClient),
 			mu:      sync.RWMutex{},
 		},
+		xToken: xToken,
 	}, nil
 }
 
@@ -103,6 +105,11 @@ func (c *Client) AddStreamClient(
 
 	if _, exists := c.s.clients[streamName]; exists {
 		return fmt.Errorf("client with name %s already exists", streamName)
+	}
+
+	if c.xToken != "" {
+		md := metadata.New(map[string]string{"x-token": c.xToken})
+		ctx = metadata.NewOutgoingContext(ctx, md)
 	}
 
 	stream, err := c.Geyser.Subscribe(ctx, opts...)
@@ -349,6 +356,9 @@ func (s *StreamClient) listen() {
 			return
 		default:
 			recv, err := s.geyser.Recv()
+
+			fmt.Printf("recv %+v\n", recv)
+
 			if err != nil {
 				if err == io.EOF {
 					s.ErrCh <- errors.New("stream cancelled: EOF")
