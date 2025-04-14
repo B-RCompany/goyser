@@ -357,8 +357,6 @@ func (s *StreamClient) listen() {
 		default:
 			recv, err := s.geyser.Recv()
 
-			fmt.Printf("recv %+v\n", recv)
-
 			if err != nil {
 				if err == io.EOF {
 					s.ErrCh <- errors.New("stream cancelled: EOF")
